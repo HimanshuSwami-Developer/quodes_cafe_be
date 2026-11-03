@@ -1,0 +1,46 @@
+{% extends 'admin/base.html' %}
+{% load i18n unfold %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-1">
+        {% component "unfold/components/title.html" %}{{ cafe.name }} desk{% endcomponent %}
+        {% component "unfold/components/text.html" with class="text-subtle" %}
+            Open {{ cafe.open_hour }}:00 – {{ cafe.close_hour }}:00 · UPI {{ cafe.upi_id }} · {{ counts.games }} games · {{ counts.stations }} stations
+        {% endcomponent %}
+    </div>
+
+    <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+        {% for k in kpis %}
+            {% component "unfold/components/card.html" with href=k.href icon=k.icon %}
+                {% component "unfold/components/text.html" with class="text-subtle" %}{{ k.title }}{% endcomponent %}
+                {% component "unfold/components/title.html" %}{{ k.value }}{% endcomponent %}
+            {% endcomponent %}
+        {% endfor %}
+    </div>
+
+    {% component "unfold/components/card.html" with title="Quick add" title_icon="add" %}
+        <div class="flex flex-row flex-wrap gap-2">
+            {% for q in quick_add %}
+                {% component "unfold/components/button.html" with href=q.href icon=q.icon variant="default" %}{{ q.title }}{% endcomponent %}
+            {% endfor %}
+        </div>
+    {% endcomponent %}
+
+    <div class="grid gap-4 grid-cols-1 xl:grid-cols-2">
+        {% component "unfold/components/card.html" with title="Payments waiting for team verification" description="Oldest deadline first. Unverified bookings are released and credited automatically." title_icon="verified" %}
+            {% component "unfold/components/table.html" with table=queue_table card_included=1 striped=1 %}{% endcomponent %}
+        {% endcomponent %}
+
+        {% component "unfold/components/card.html" with title="Today's sessions" title_icon="event_seat" %}
+            {% component "unfold/components/table.html" with table=today_table card_included=1 striped=1 %}{% endcomponent %}
+        {% endcomponent %}
+    </div>
+</div>
+{% endblock %}

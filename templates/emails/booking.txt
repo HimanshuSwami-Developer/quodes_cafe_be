@@ -1,0 +1,14 @@
+{{ heading }}
+
+{{ lead }}
+
+{% include "emails/_booking.txt" %}
+{% if pay %}
+Pay ₹{{ b.amount_due|floatformat:"0" }} to UPI ID {{ cafe.upi_id }} ({{ cafe.upi_payee }}),
+then upload the success screenshot in the app before {{ lock_until }}.
+{% endif %}{% if checks %}
+What we found:
+{% for c in checks %}- {{ c.label }}{% if c.detail %}: {{ c.detail }}{% endif %}
+{% endfor %}{% endif %}
+{% for line in notes %}{{ line }}
+{% endfor %}

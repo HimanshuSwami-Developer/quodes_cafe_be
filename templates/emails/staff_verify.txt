@@ -1,0 +1,7 @@
+Payment to verify: {{ b.code }}
+
+{{ b.user }} ({{ b.user.email }}) says they paid. Check UTR {{ b.utr|default:"(not given)" }} and approve or reject before {{ deadline }}.
+AI check: {{ b.ai_message }}
+
+{% include "emails/_booking.txt" %}
+Open booking: {{ staff_link }}

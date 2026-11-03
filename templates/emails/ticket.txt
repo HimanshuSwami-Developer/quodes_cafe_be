@@ -1,0 +1,11 @@
+{{ heading }}
+
+{{ lead }}
+
+Ticket #{{ t.number }} · {{ t.topic }} · {{ t.get_status_display }}
+{{ t.message }}
+{% if t.staff_reply %}
+Desk reply:
+{{ t.staff_reply }}
+{% endif %}{% if staff_link %}
+Open in admin panel: {{ staff_link }}{% endif %}

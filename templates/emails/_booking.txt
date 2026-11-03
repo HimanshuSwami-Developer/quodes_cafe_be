@@ -1,0 +1,5 @@
+Booking {{ b.code }}
+{{ b.game.name }}
+{{ b.date_label }} · {{ b.time_label }}
+{{ b.station_label }} · {{ b.seats.count }} player{{ b.seats.count|pluralize }}
+Amount: ₹{{ b.amount_due|floatformat:"0" }}

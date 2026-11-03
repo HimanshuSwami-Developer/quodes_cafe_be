@@ -1,0 +1,4 @@
+Welcome, {{ user.gamertag|default:"player" }}!
+
+Your email is confirmed. Pick a game, lock a station and pay by UPI, all from the app.
+We're open {{ cafe.open_hour }}:00 – {{ cafe.close_hour }}:00.

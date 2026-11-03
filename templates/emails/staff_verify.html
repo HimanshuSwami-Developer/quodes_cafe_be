@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block heading %}Payment to verify: {{ b.code }}{% endblock %}
+{% block content %}
+<p style="margin:0">{{ b.user }} ({{ b.user.email }}) says they paid. Check your bank/UPI app for UTR <b>{{ b.utr|default:"(not given)" }}</b>, then approve or reject before <b>{{ deadline }}</b>, or the slot is released and credited.</p>
+<p style="margin:10px 0 0">AI check: {{ b.ai_message }}</p>
+{% include "emails/_booking.html" %}
+<p style="margin:0"><a href="{{ staff_link }}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#2F6BFF;color:#FFFFFF;font-weight:800;text-decoration:none">Open booking</a></p>
+{% endblock %}

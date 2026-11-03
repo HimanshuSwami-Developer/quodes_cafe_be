@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block preheader %}Your account is ready{% endblock %}
+{% block heading %}Welcome, {{ user.gamertag|default:"player" }}!{% endblock %}
+{% block content %}
+<p style="margin:0 0 12px">Your email is confirmed. Pick a game, lock a station and pay by UPI, all from the app.</p>
+<p style="margin:0">We're open {{ cafe.open_hour }}:00 – {{ cafe.close_hour }}:00. See you on the leaderboard.</p>
+{% endblock %}

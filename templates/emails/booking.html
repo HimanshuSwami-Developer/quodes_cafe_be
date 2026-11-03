@@ -1,0 +1,21 @@
+{% extends "emails/base.html" %}
+{% block preheader %}{{ lead }}{% endblock %}
+{% block headcolor %}{{ color|default:"#0A1330" }}{% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
+{% block content %}
+<p style="margin:0">{{ lead }}</p>
+{% include "emails/_booking.html" %}
+{% if pay %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;border-radius:12px;background:#0A1330;color:#EAF1FF;font-size:14px">
+  <tr><td style="padding:14px 16px;line-height:1.7">
+    Pay <b>₹{{ b.amount_due|floatformat:"0" }}</b> to UPI ID <b style="color:#7FB0FF">{{ cafe.upi_id }}</b> ({{ cafe.upi_payee }})<br>
+    then upload the success screenshot in the app before <b>{{ lock_until }}</b>.
+  </td></tr>
+</table>
+{% endif %}
+{% if checks %}
+<p style="margin:0 0 6px;font-weight:800;font-size:13px;letter-spacing:1px;color:#5B6788">WHAT WE FOUND</p>
+<ul style="margin:0 0 16px;padding-left:18px">{% for c in checks %}<li style="margin:0 0 4px">{% if c.status == "fail" %}<b style="color:#C2283B">{{ c.label }}</b>{% else %}{{ c.label }}{% endif %}{% if c.detail %}: {{ c.detail }}{% endif %}</li>{% endfor %}</ul>
+{% endif %}
+{% for line in notes %}<p style="margin:0 0 10px">{{ line }}</p>{% endfor %}
+{% endblock %}

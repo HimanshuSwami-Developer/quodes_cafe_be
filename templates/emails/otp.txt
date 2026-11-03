@@ -1,0 +1,8 @@
+{{ heading }}
+
+{{ intro }}
+
+Your code: {{ code }}
+
+It expires in {{ minutes }} minutes. Never share it, even with Quodes staff.
+Didn't ask for this? Ignore this email; nothing changes without the code.
