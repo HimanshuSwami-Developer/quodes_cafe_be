@@ -91,12 +91,23 @@ class GameAdmin(ModelAdmin):
     search_fields = ["name", "mono"]
     fieldsets = (
         (None, {"fields": ("name", "genre", "platforms", "max_players", "is_active", "sort")}),
-        ("Tile look", {"fields": ("mono", "hue", "deep"),
-                       "description": "Short label and two colours used for the game tile in the app."}),
+        ("Tile look", {"fields": ("cover", "cover_preview", "mono", "hue", "deep"),
+                       "description": "Cover image for the game tile in the app. Without one, the app draws "
+                                      "a tile from the short label and the two colours."}),
     )
+    readonly_fields = ["cover_preview"]
+
+    @admin.display(description="Current cover")
+    def cover_preview(self, g):
+        if not g.cover:
+            return "—"
+        return format_html('<img src="{}" style="max-width:360px;max-height:200px;border-radius:8px">', g.cover.url)
 
     @admin.display(description="Tile")
     def tile(self, g):
+        if g.cover:
+            return format_html('<img src="{}" style="width:48px;height:32px;object-fit:cover;border-radius:6px;'
+                               'border:2px solid {}">', g.cover.url, g.hue)
         return format_html('<span style="display:inline-flex;align-items:center;justify-content:center;'
                            'width:48px;height:32px;border-radius:6px;background:{};color:{};font-weight:800;'
                            'border:2px solid {}">{}</span>', g.deep, g.hue, g.hue, g.mono)

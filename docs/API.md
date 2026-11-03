@@ -20,7 +20,8 @@ Errors: `{"detail": "message"}` or DRF field errors `{"field": ["msg"]}`. Times 
 
 ## Café & catalog (public)
 - `GET cafe/` → `{name, open_now, opens_at, closes_at, upi_id, upi_payee, lock_minutes: 10, verify_hours: 2, support_phone, maps_url, reply_minutes, open_hour, close_hour}` (`opens_at`/`closes_at` are labels like `"10 AM"`, `"12 AM"`).
-- `GET games/?genre=SHOOTER&q=val` → `[Game]`; `Game = {id, name, mono, genre, hue, deep, platforms: ["PS5","PS4","PC"], max_players}`.
+- `GET games/?genre=SHOOTER&q=val` → `[Game]`; `Game = {id, name, mono, genre, hue, deep, platforms: ["PS5","PS4","PC"], platform_names, max_players, cover_url}`. `cover_url` is an absolute image URL (Cloudinary CDN or `/media/`), or `null` when the game has no cover. The app then falls back to its built-in art.
+- Staff: `POST admin/games/{id}/cover/` (multipart, field `cover`, PNG/JPG/WebP, max 5 MB) sets the cover, and `DELETE admin/games/{id}/cover/` removes it. Both return the game.
 - `GET genres/` → `["All","Shooter","Sports",...]`.
 - `GET station-types/?game=<id>` → `[{code: "PS5", name, spec, seats_per_station, hourly_rate, max_players, free_seats, total_seats, enabled}]` (`enabled` false when the game doesn't run on that platform).
 - `GET seatmap/?type=PS5` → `{type, seats_per_station, cols, stations: [{id, code, seats: [{id, code, label, busy}]}]}` — `busy` = booked/locked in the current hour.

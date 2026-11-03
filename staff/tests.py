@@ -100,3 +100,72 @@ class StaffApiTests(TestCase):
         self.assertTrue(self.staff.is_active and self.staff.is_staff)
         r = self.api.patch(f"/api/admin/users/{self.player.id}/", {"credit": "250.00"}, format="json")
         self.assertEqual(r.data["credit"], "250.00")
+
+
+@override_settings(AI_VERIFY_ASYNC=False, EMAIL_ASYNC=False, MEDIA_ROOT="/tmp/quodes-test-media")
+class GameCoverTests(TestCase):
+    def setUp(self):
+        call_command("seed", verbosity=0)
+        self.staff = User.objects.create_user("desk@x.com", "Str0ng!pass", is_staff=True, email_verified=True)
+        self.api = APIClient()
+        self.api.force_authenticate(self.staff)
+        self.game = Game.objects.get(mono="FC25")
+
+    def test_upload_replace_and_remove_cover(self):
+        url = f"/api/admin/games/{self.game.id}/cover/"
+        r = self.api.post(url, {"cover": png()}, format="multipart")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertTrue(r.data["cover_url"].startswith("http://testserver/media/games/fc25-"))
+        first = Game.objects.get(pk=self.game.pk).cover
+        self.assertTrue(first.storage.exists(first.name))
+
+        # Players see it too, in the catalogue and nested in bookings.
+        papi = APIClient()
+        papi.force_authenticate(User.objects.create_user("p@x.com", "Str0ng!pass", email_verified=True))
+        games = papi.get("/api/games/").data
+        fc = next(g for g in games if g["id"] == self.game.id)
+        self.assertEqual(fc["cover_url"], r.data["cover_url"])
+
+        # Replacing deletes the old file.
+        r = self.api.post(url, {"cover": png()}, format="multipart")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(first.storage.exists(first.name))
+
+        second = Game.objects.get(pk=self.game.pk).cover
+        r = self.api.delete(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.data["cover_url"])
+        self.assertFalse(second.storage.exists(second.name))
+
+    def test_rejects_non_images(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        bad = SimpleUploadedFile("x.png", b"not an image", content_type="image/png")
+        r = self.api.post(f"/api/admin/games/{self.game.id}/cover/", {"cover": bad}, format="multipart")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("cover", r.data)
+
+    def test_games_without_cover(self):
+        self.assertIsNone(self.api.get(f"/api/admin/games/{self.game.id}/").data["cover_url"])
+
+
+@override_settings(AI_VERIFY_ASYNC=False, EMAIL_ASYNC=False, MEDIA_ROOT="/tmp/quodes-test-media")
+class ScreenshotStorageTests(TestCase):
+    def test_ai_scan_reads_screenshot_through_storage(self):
+        """The scan must not use .path (Cloudinary files have none); it gets the bytes via the storage."""
+        call_command("seed", verbosity=0)
+        player = User.objects.create_user("p@x.com", "Str0ng!pass", email_verified=True)
+        api = APIClient()
+        api.force_authenticate(player)
+        seat = Seat.objects.filter(station__type__code="PS5").first()
+        bid = api.post("/api/bookings/", {"game": Game.objects.get(mono="FC25").id, "seat_ids": [seat.id],
+                                          "date": (timezone.localdate() + timedelta(days=1)).isoformat(),
+                                          "start_hour": 14, "duration_hours": 1}, format="json").data["id"]
+        upload = png()
+        sent = upload.read()
+        upload.seek(0)
+        with mock.patch("bookings.ai.extract", return_value=None) as extract, \
+                mock.patch("django.db.models.fields.files.FieldFile.path",
+                           new_callable=mock.PropertyMock, side_effect=NotImplementedError):
+            api.post(f"/api/bookings/{bid}/proof/", {"screenshot": upload}, format="multipart")
+        self.assertEqual(extract.call_args.args[0].getvalue(), sent)
+        self.assertEqual(Booking.objects.get(pk=bid).status, Booking.Status.PENDING_HUMAN)

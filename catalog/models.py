@@ -1,7 +1,11 @@
+import logging
+import secrets
 from decimal import Decimal
 
 from django.db import models
 from django.utils import timezone
+
+log = logging.getLogger(__name__)
 
 
 def hour_label(h):
@@ -113,6 +117,12 @@ class Seat(models.Model):
         return f"P{self.index}"
 
 
+def cover_path(instance, filename):
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
+    slug = "".join(c for c in (instance.mono or "game").lower() if c.isalnum()) or "game"
+    return f"games/{slug}-{secrets.token_hex(4)}.{ext}"
+
+
 class Game(models.Model):
     GENRES = ["SHOOTER", "SPORTS", "RACING", "FIGHTING", "OPEN WORLD", "ACTION"]
 
@@ -121,6 +131,8 @@ class Game(models.Model):
     genre = models.CharField(max_length=20, choices=[(g, g.title()) for g in GENRES])
     hue = models.CharField(max_length=7, default="#2F6BFF")
     deep = models.CharField(max_length=7, default="#111C42")
+    cover = models.ImageField(upload_to=cover_path, blank=True,
+                              help_text="Tile artwork shown in the app (landscape works best, e.g. 1200×640).")
     platforms = models.ManyToManyField(StationType, related_name="games")
     max_players = models.PositiveSmallIntegerField(default=4)
     is_active = models.BooleanField(default=True)
@@ -131,3 +143,22 @@ class Game(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        old = Game.objects.filter(pk=self.pk).values_list("cover", flat=True).first() if self.pk else None
+        super().save(*args, **kwargs)
+        if old and old != self.cover.name:
+            self._drop_file(old)  # cover replaced or cleared
+
+    def delete(self, *args, **kwargs):
+        name = self.cover.name
+        result = super().delete(*args, **kwargs)
+        if name:
+            self._drop_file(name)
+        return result
+
+    def _drop_file(self, name):
+        try:
+            self.cover.storage.delete(name)
+        except Exception:  # a storage hiccup must never block editing the catalogue
+            log.warning("Couldn't delete old game cover %s", name, exc_info=True)

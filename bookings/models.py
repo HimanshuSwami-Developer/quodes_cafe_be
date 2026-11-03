@@ -8,6 +8,7 @@ from django.db import models
 from django.utils import timezone
 
 from catalog.models import Game, Seat, StationType, hour_label
+from quodes.storage import private_storage
 
 
 def new_code():
@@ -65,7 +66,7 @@ class Booking(models.Model):
     confirmed_at = models.DateTimeField(null=True, blank=True)
     released_at = models.DateTimeField(null=True, blank=True)
 
-    screenshot = models.ImageField(upload_to=proof_path, blank=True)
+    screenshot = models.ImageField(upload_to=proof_path, storage=private_storage, blank=True)
     utr = models.CharField("UTR / transaction ID", max_length=32, blank=True, db_index=True)
     ai_checks = models.JSONField(default=list, blank=True)
     ai_message = models.CharField(max_length=300, blank=True)

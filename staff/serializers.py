@@ -6,6 +6,7 @@ from accounts.models import User
 from bookings.models import Booking
 from bookings.serializers import BookingSerializer
 from catalog.models import CafeSettings, Game, Station, StationType
+from catalog.serializers import file_url
 from support.models import FAQ, Policy, PolicySection, Ticket
 
 
@@ -24,10 +25,7 @@ class StaffBookingSerializer(BookingSerializer):
                 "phone": u.phone, "credit": str(u.credit)}
 
     def get_screenshot_url(self, b):
-        if not b.screenshot:
-            return None
-        req = self.context.get("request")
-        return req.build_absolute_uri(b.screenshot.url) if req else b.screenshot.url
+        return file_url(b.screenshot, self.context.get("request"))
 
 
 class StationTypeAdminSerializer(serializers.ModelSerializer):
@@ -58,10 +56,15 @@ class StationAdminSerializer(serializers.ModelSerializer):
 
 class GameAdminSerializer(serializers.ModelSerializer):
     platforms = serializers.SlugRelatedField(many=True, slug_field="code", queryset=StationType.objects.all())
+    cover_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Game
-        fields = ["id", "name", "mono", "genre", "hue", "deep", "platforms", "max_players", "is_active", "sort"]
+        fields = ["id", "name", "mono", "genre", "hue", "deep", "platforms", "max_players", "is_active", "sort",
+                  "cover_url"]
+
+    def get_cover_url(self, g):
+        return file_url(g.cover, self.context.get("request"))
 
     def validate_hue(self, v):
         return _hex(v)
@@ -142,10 +145,7 @@ class TicketAdminSerializer(serializers.ModelSerializer):
         return {"id": t.user_id, "email": t.user.email, "gamertag": t.user.gamertag}
 
     def get_attachment_url(self, t):
-        if not t.attachment:
-            return None
-        req = self.context.get("request")
-        return req.build_absolute_uri(t.attachment.url) if req else t.attachment.url
+        return file_url(t.attachment, self.context.get("request"))
 
 
 class UserAdminSerializer(serializers.ModelSerializer):
@@ -156,6 +156,19 @@ class UserAdminSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "gamertag", "full_name", "phone", "credit", "email_verified",
                   "is_active", "is_staff", "date_joined", "last_login", "bookings"]
         read_only_fields = ["email", "date_joined", "last_login"]
+
+
+class CoverSerializer(serializers.Serializer):
+    cover = serializers.ImageField()
+
+    def validate_cover(self, f):
+        from django.conf import settings
+        if f.size > settings.MAX_COVER_BYTES:
+            raise serializers.ValidationError("Cover must be under 5 MB.")
+        fmt = getattr(getattr(f, "image", None), "format", None) or ""
+        if fmt.upper() not in ("PNG", "JPEG", "WEBP"):
+            raise serializers.ValidationError("Upload a PNG, JPG or WebP image.")
+        return f
 
 
 class RejectSerializer(serializers.Serializer):

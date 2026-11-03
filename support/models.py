@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from quodes.storage import private_storage
+
 
 class Ticket(models.Model):
     TOPICS = ["Payment", "Reschedule", "Refund", "Station issue", "Other"]
@@ -14,7 +16,7 @@ class Ticket(models.Model):
     topic = models.CharField(max_length=20, choices=[(t, t) for t in TOPICS])
     booking_code = models.CharField(max_length=12, blank=True)
     message = models.TextField(max_length=2000)
-    attachment = models.FileField(upload_to="tickets/%Y/%m/", blank=True)
+    attachment = models.FileField(upload_to="tickets/%Y/%m/", storage=private_storage, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
     staff_reply = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

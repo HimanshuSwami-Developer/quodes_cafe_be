@@ -38,11 +38,25 @@ uv venv -p python3.13 .venv && uv pip install -r requirements.txt   # or python 
 - New players must enter the emailed code before they can log in (`REQUIRE_EMAIL_VERIFICATION`). Accounts that existed before this change were marked verified.
 - The AI model is set by `GROQ_MODEL` (default `qwen/qwen3.8-27b`, Groq's vision model, with strict JSON-schema output). The model only extracts the fields; every pass/fail decision is made in code (`bookings/ai.py`).
 
+### Database (Postgres) and file storage (Cloudinary)
+Both are switched on from `backend/.env`. With neither set, the app runs on SQLite with uploads in `backend/media/`, as before.
+- **Postgres:** set `DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME`, plus `DATABASE_SSL=true` for hosted databases (Neon, Supabase, Render, RDS). Then run `migrate` and `seed` (or move existing data, below). Local Postgres: `docker run -d --name quodes-pg -e POSTGRES_USER=quodes -e POSTGRES_PASSWORD=quodes -e POSTGRES_DB=quodes -p 5432:5432 postgres:17`, then `DATABASE_URL=postgres://quodes:quodes@localhost:5432/quodes`.
+- **Moving existing SQLite data to Postgres:** with `DATABASE_URL` still empty, run `manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e auth.permission -e admin.logentry -e sessions --indent 2 > data.json`. Set `DATABASE_URL`, run `migrate`, then `loaddata data.json`.
+- **Cloudinary:** set `CLOUDINARY_URL` (Cloudinary dashboard › Settings › API Keys › "API environment variable"). Everything goes under the `CLOUDINARY_FOLDER` folder (default `quodes/`):
+  | Upload | Folder | Delivery |
+  |---|---|---|
+  | Game covers (admin › Games, or the app's admin panel) | `quodes/games/` | Public CDN URL, resized to max 1200px wide, auto quality |
+  | Payment screenshots | `quodes/proofs/YYYY/MM/` | **Private** (`authenticated`): only signed URLs work, and the API gives them only to staff |
+  | Support ticket attachments | `quodes/tickets/YYYY/MM/` | **Private**, same as screenshots |
+
+  Replacing or removing a game cover deletes the old file. Payment screenshots are never deleted automatically, so the desk keeps the evidence. The AI scan downloads the screenshot through the storage layer, so it works the same on disk and on Cloudinary. Code: `quodes/storage.py`.
+- Files uploaded to `media/` before Cloudinary was switched on are not moved automatically. Upload them to the same paths under `quodes/` in Cloudinary, or re-upload the covers in admin.
+
 ## Admin panel (`/admin`)
 Log in with the superuser. Built with django-unfold in the app's blue.
 - **Dashboard:** payments to verify, today's sessions, today's confirmed revenue, live locks, quick-add buttons, the verification queue (shows minutes left) and today's schedule.
 - **Desk:** Verify payments (the sidebar badge shows the count), All bookings (each booking has the screenshot, AI checks and Approve/Reject buttons), Support tickets (change status, write a reply).
-- **Café:** Games (tile colour pickers, platforms as checkboxes), Station types & rates (edit rates in the list, add stations inline; seats are created automatically), Stations (switch one off for maintenance), Café settings.
+- **Café:** Games (cover image upload, tile colour pickers, platforms as checkboxes), Station types & rates (edit rates in the list, add stations inline; seats are created automatically), Stations (switch one off for maintenance), Café settings.
 - **Content:** FAQs and Policies (sections inline). The app reads these live.
 - **People:** Players & staff (adjust credit; tick "staff" to give desk access) and Staff roles (limit what non-owners can do).
 

@@ -61,7 +61,7 @@ def games(request):
     q = request.query_params.get("q")
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(mono__icontains=q))
-    return Response(GameSerializer(qs, many=True).data)
+    return Response(GameSerializer(qs, many=True, context={"request": request}).data)
 
 
 @api_view(["GET"])

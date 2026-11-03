@@ -6,6 +6,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from accounts.models import User
@@ -15,7 +16,7 @@ from catalog.models import CafeSettings, Game, Station, StationType
 from support import notify as ticket_notify
 from support.models import FAQ, Policy, Ticket
 
-from .serializers import (CafeSettingsSerializer, FAQAdminSerializer, GameAdminSerializer,
+from .serializers import (CafeSettingsSerializer, CoverSerializer, FAQAdminSerializer, GameAdminSerializer,
                           PolicyAdminSerializer, RejectSerializer, StaffBookingSerializer,
                           StationAdminSerializer, StationTypeAdminSerializer, TicketAdminSerializer,
                           UserAdminSerializer)
@@ -105,6 +106,19 @@ class GameAdminViewSet(viewsets.ModelViewSet):
     permission_classes = staff_only
     serializer_class = GameAdminSerializer
     queryset = Game.objects.prefetch_related("platforms").order_by("sort", "name")
+
+    @action(detail=True, methods=["post", "delete"], parser_classes=[MultiPartParser])
+    def cover(self, request, pk=None):
+        """POST multipart `cover` to set the tile image; DELETE to remove it."""
+        game = self.get_object()
+        if request.method == "DELETE":
+            game.cover = None
+        else:
+            s = CoverSerializer(data=request.data)
+            s.is_valid(raise_exception=True)
+            game.cover = s.validated_data["cover"]
+        game.save()  # Game.save() removes the previous file
+        return Response(self.get_serializer(game).data)
 
 
 class StationTypeAdminViewSet(viewsets.ModelViewSet):

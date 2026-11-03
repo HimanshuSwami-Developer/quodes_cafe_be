@@ -1,5 +1,6 @@
 """Django settings for the Quodes Gaming backend."""
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -73,12 +74,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "quodes.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# `manage.py test` always runs on local SQLite + disk, never on the real Neon / Cloudinary.
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+
+# Postgres when DATABASE_URL is set (postgres://user:pass@host:5432/dbname), else local SQLite.
+DATABASE_URL = "" if TESTING else env("DATABASE_URL", "")
+if DATABASE_URL:
+    import dj_database_url
+
+    DATABASES = {"default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=int(env("DATABASE_CONN_MAX_AGE", "60")),
+        conn_health_checks=True,
+        # Hosted Postgres (Neon, Supabase, Render, RDS...) needs SSL; local Docker usually doesn't.
+        ssl_require=env_bool("DATABASE_SSL", False),
+    )}
+    # Pooled hosts (Neon "-pooler", Supabase :6543, PgBouncer) run in transaction mode,
+    # which breaks server-side cursors.
+    if "pooler" in DATABASE_URL or ":6543" in DATABASE_URL or env_bool("DATABASE_POOLED", False):
+        DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -98,6 +119,35 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# ---- Uploaded files (game covers, payment screenshots, ticket attachments) ----
+# With CLOUDINARY_URL set, uploads go to Cloudinary; otherwise they're saved under MEDIA_ROOT.
+# Either CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud> or the three separate variables.
+CLOUDINARY_URL = env("CLOUDINARY_URL", "")
+if not CLOUDINARY_URL and env("CLOUDINARY_CLOUD_NAME") and env("CLOUDINARY_API_KEY") and env("CLOUDINARY_API_SECRET"):
+    CLOUDINARY_URL = (f"cloudinary://{env('CLOUDINARY_API_KEY')}:{env('CLOUDINARY_API_SECRET')}"
+                      f"@{env('CLOUDINARY_CLOUD_NAME')}")
+CLOUDINARY_FOLDER = env("CLOUDINARY_FOLDER", "quodes")
+USE_CLOUDINARY = bool(CLOUDINARY_URL) and not TESTING
+if USE_CLOUDINARY:
+    from quodes.storage import configure as _configure_cloudinary
+
+    _configure_cloudinary(CLOUDINARY_URL)
+    STORAGES = {
+        # Public: game covers, served from the CDN, capped at 1200px wide.
+        "default": {"BACKEND": "quodes.storage.CloudinaryStorage",
+                    "OPTIONS": {"delivery": "upload", "max_width": 1200}},
+        # Private: payment screenshots + ticket attachments, signed URLs only.
+        "private": {"BACKEND": "quodes.storage.CloudinaryStorage",
+                    "OPTIONS": {"delivery": "authenticated"}},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "private": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -144,8 +194,9 @@ STAFF_ALERT_EMAILS = [e.strip() for e in env("STAFF_ALERT_EMAILS", "").split(","
 # Players must confirm their email with a code before they can log in.
 REQUIRE_EMAIL_VERIFICATION = env_bool("REQUIRE_EMAIL_VERIFICATION", True)
 
-# Upload limit for payment screenshots (bytes)
+# Upload limits (bytes)
 MAX_PROOF_BYTES = 5 * 1024 * 1024
+MAX_COVER_BYTES = 5 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024
 
 # Groq vision model that reads payment screenshots (needs GROQ_API_KEY). Without a key

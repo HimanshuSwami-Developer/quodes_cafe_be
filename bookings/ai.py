@@ -67,9 +67,10 @@ SYSTEM = (
 )
 
 
-def _data_url(path):
-    """Downscale to <=1568px JPEG so any phone screenshot stays far below Groq's 20 MB request cap."""
-    with Image.open(path) as im:
+def _data_url(src):
+    """Downscale to <=1568px JPEG so any phone screenshot stays far below Groq's 20 MB request cap.
+    `src` is a file path or a binary file object."""
+    with Image.open(src) as im:
         im = im.convert("RGB")
         im.thumbnail((1568, 1568))
         buf = io.BytesIO()
@@ -77,7 +78,7 @@ def _data_url(path):
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-def extract(path) -> Optional[PaymentScreenshot]:
+def extract(src) -> Optional[PaymentScreenshot]:
     api_key = settings.GROQ_API_KEY
     if not settings.AI_VERIFY_ENABLED or not api_key:
         return None
@@ -92,7 +93,7 @@ def extract(path) -> Optional[PaymentScreenshot]:
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": [
                     {"type": "text", "text": "Extract the payment details from this screenshot."},
-                    {"type": "image_url", "image_url": {"url": _data_url(path)}},
+                    {"type": "image_url", "image_url": {"url": _data_url(src)}},
                 ]},
             ],
         )
@@ -182,7 +183,14 @@ def scan_payment(booking: Booking):
     """Returns (checks, extracted_dict) or None if the AI step is unavailable."""
     if not booking.screenshot:
         return None
-    data = extract(booking.screenshot.path)
+    # Through the storage, not .path: the file may live on Cloudinary.
+    try:
+        with booking.screenshot.open("rb") as f:
+            raw = f.read()
+    except Exception:
+        log.exception("Couldn't read screenshot for %s; sending proof to human review", booking.code)
+        return None
+    data = extract(io.BytesIO(raw))
     if data is None:
         return None
     return evaluate(booking, data), data.model_dump()
