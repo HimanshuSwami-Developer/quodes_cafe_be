@@ -3,7 +3,9 @@ from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from quodes import mailer
 
@@ -143,3 +145,13 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class RefreshView(TokenRefreshView):
+    """Token refresh that answers 401 (not 500) when the token's user no longer exists."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except User.DoesNotExist:
+            raise AuthenticationFailed("User no longer exists. Please log in again.", code="user_not_found")

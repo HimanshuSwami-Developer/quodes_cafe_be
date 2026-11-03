@@ -10,11 +10,13 @@ Two storages (see STORAGES in settings):
 The name saved in the database is the plain path (e.g. `proofs/2026/11/QG-ABC123-1a2b.png`),
 so switching between disk and Cloudinary needs no schema change.
 """
+import logging
 import posixpath
 import secrets
 from urllib.parse import urlparse
 
 import cloudinary
+import cloudinary.exceptions
 import cloudinary.uploader
 import cloudinary.utils
 import httpx
@@ -22,9 +24,12 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import Storage, storages
 from django.utils.deconstruct import deconstructible
+from rest_framework.exceptions import APIException
 
 # Delivered as Cloudinary "image" assets (resizable, format-converted). Everything else,
 # including PDFs (blocked for delivery on new Cloudinary accounts by default), goes as "raw".
+logger = logging.getLogger(__name__)
+
 IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff", "heic", "heif", "avif"}
 
 
@@ -34,6 +39,13 @@ def configure(url):
     if u.scheme != "cloudinary" or not (u.hostname and u.username and u.password):
         raise ValueError("CLOUDINARY_URL must look like cloudinary://<api_key>:<api_secret>@<cloud_name>")
     cloudinary.config(cloud_name=u.hostname, api_key=u.username, api_secret=u.password, secure=True)
+
+
+class UploadFailed(APIException):
+    """Cloudinary refused or failed an upload. Becomes a clean 503 JSON error in API views."""
+    status_code = 503
+    default_detail = "File upload is unavailable right now. Please try again later."
+    default_code = "upload_failed"
 
 
 def private_storage():
@@ -65,9 +77,13 @@ class CloudinaryStorage(Storage):
         for attempt in range(5):
             rtype, public_id, _ = self._asset(name)
             content.seek(0)
-            res = cloudinary.uploader.upload(
-                content, public_id=public_id, resource_type=rtype, type=self.delivery,
-                overwrite=False, unique_filename=False, use_filename=False, invalidate=True)
+            try:
+                res = cloudinary.uploader.upload(
+                    content, public_id=public_id, resource_type=rtype, type=self.delivery,
+                    overwrite=False, unique_filename=False, use_filename=False, invalidate=True)
+            except cloudinary.exceptions.Error as e:
+                logger.error("Cloudinary upload of %s failed: %s", public_id, e)
+                raise UploadFailed() from e
             if not res.get("existing"):
                 return name
             # Name taken: Cloudinary kept the old file. Add a suffix and try again.

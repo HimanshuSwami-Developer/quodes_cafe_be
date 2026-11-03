@@ -2,7 +2,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-from rest_framework_simplejwt.views import TokenRefreshView
 
 from accounts import views as acc
 from bookings import views as bk
@@ -16,7 +15,7 @@ admin.site.index_title = "Bookings, payments & players"
 api = [
     path("auth/register/", acc.RegisterView.as_view()),
     path("auth/login/", acc.LoginView.as_view()),
-    path("auth/refresh/", TokenRefreshView.as_view()),
+    path("auth/refresh/", acc.RefreshView.as_view()),
     path("auth/email/verify/", acc.VerifyEmailView.as_view()),
     path("auth/email/resend/", acc.ResendCodeView.as_view()),
     path("auth/password/forgot/", acc.ForgotPasswordView.as_view()),
