@@ -57,14 +57,18 @@ class StationAdminSerializer(serializers.ModelSerializer):
 class GameAdminSerializer(serializers.ModelSerializer):
     platforms = serializers.SlugRelatedField(many=True, slug_field="code", queryset=StationType.objects.all())
     cover_url = serializers.SerializerMethodField()
+    banner_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Game
         fields = ["id", "name", "mono", "genre", "hue", "deep", "platforms", "max_players", "is_active", "sort",
-                  "cover_url"]
+                  "cover_url", "banner_url"]
 
     def get_cover_url(self, g):
         return file_url(g.cover, self.context.get("request"))
+
+    def get_banner_url(self, g):
+        return file_url(g.banner, self.context.get("request"))
 
     def validate_hue(self, v):
         return _hex(v)
@@ -159,16 +163,20 @@ class UserAdminSerializer(serializers.ModelSerializer):
 
 
 class CoverSerializer(serializers.Serializer):
-    cover = serializers.ImageField()
+    """Validates one uploaded game image; the field name is `cover` or `banner`."""
 
-    def validate_cover(self, f):
+    def __init__(self, *args, field="cover", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[field] = serializers.ImageField(validators=[self.check_image])
+
+    @staticmethod
+    def check_image(f):
         from django.conf import settings
         if f.size > settings.MAX_COVER_BYTES:
-            raise serializers.ValidationError("Cover must be under 5 MB.")
+            raise serializers.ValidationError("Image must be under 5 MB.")
         fmt = getattr(getattr(f, "image", None), "format", None) or ""
         if fmt.upper() not in ("PNG", "JPEG", "WEBP"):
             raise serializers.ValidationError("Upload a PNG, JPG or WebP image.")
-        return f
 
 
 class RejectSerializer(serializers.Serializer):

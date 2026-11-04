@@ -91,17 +91,25 @@ class GameAdmin(ModelAdmin):
     search_fields = ["name", "mono"]
     fieldsets = (
         (None, {"fields": ("name", "genre", "platforms", "max_players", "is_active", "sort")}),
-        ("Tile look", {"fields": ("cover", "cover_preview", "mono", "hue", "deep"),
-                       "description": "Cover image for the game tile in the app. Without one, the app draws "
-                                      "a tile from the short label and the two colours."}),
+        ("Images", {"fields": ("cover", "cover_preview", "banner", "banner_preview"),
+                    "description": "Cover: portrait poster for the Games grid on the home screen. "
+                                   "Banner: landscape image at the top of the slot booking screen. "
+                                   "Without them, the app draws a tile from the short label and the two colours."}),
+        ("Fallback tile", {"fields": ("mono", "hue", "deep")}),
     )
-    readonly_fields = ["cover_preview"]
+    readonly_fields = ["cover_preview", "banner_preview"]
 
     @admin.display(description="Current cover")
     def cover_preview(self, g):
         if not g.cover:
             return "—"
-        return format_html('<img src="{}" style="max-width:360px;max-height:200px;border-radius:8px">', g.cover.url)
+        return format_html('<img src="{}" style="max-width:180px;max-height:250px;border-radius:8px">', g.cover.url)
+
+    @admin.display(description="Current banner")
+    def banner_preview(self, g):
+        if not g.banner:
+            return "—"
+        return format_html('<img src="{}" style="max-width:360px;max-height:200px;border-radius:8px">', g.banner.url)
 
     @admin.display(description="Tile")
     def tile(self, g):

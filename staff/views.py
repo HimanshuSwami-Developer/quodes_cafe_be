@@ -109,14 +109,22 @@ class GameAdminViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post", "delete"], parser_classes=[MultiPartParser])
     def cover(self, request, pk=None):
-        """POST multipart `cover` to set the tile image; DELETE to remove it."""
+        """POST multipart `cover` to set the portrait grid poster; DELETE to remove it."""
+        return self._image(request, "cover")
+
+    @action(detail=True, methods=["post", "delete"], parser_classes=[MultiPartParser])
+    def banner(self, request, pk=None):
+        """POST multipart `banner` to set the landscape booking-screen image; DELETE to remove it."""
+        return self._image(request, "banner")
+
+    def _image(self, request, field):
         game = self.get_object()
         if request.method == "DELETE":
-            game.cover = None
+            setattr(game, field, None)
         else:
-            s = CoverSerializer(data=request.data)
+            s = CoverSerializer(data=request.data, field=field)
             s.is_valid(raise_exception=True)
-            game.cover = s.validated_data["cover"]
+            setattr(game, field, s.validated_data[field])
         game.save()  # Game.save() removes the previous file
         return Response(self.get_serializer(game).data)
 

@@ -132,7 +132,9 @@ class Game(models.Model):
     hue = models.CharField(max_length=7, default="#2F6BFF")
     deep = models.CharField(max_length=7, default="#111C42")
     cover = models.ImageField(upload_to=cover_path, blank=True,
-                              help_text="Tile artwork shown in the app (landscape works best, e.g. 1200×640).")
+                              help_text="Portrait poster for the Games grid on the home screen (e.g. 800×1100).")
+    banner = models.ImageField(upload_to=cover_path, blank=True,
+                               help_text="Landscape image for the top of the slot booking screen (e.g. 1200×640).")
     platforms = models.ManyToManyField(StationType, related_name="games")
     max_players = models.PositiveSmallIntegerField(default=4)
     is_active = models.BooleanField(default=True)
@@ -144,21 +146,25 @@ class Game(models.Model):
     def __str__(self):
         return self.name
 
+    IMAGE_FIELDS = ("cover", "banner")
+
     def save(self, *args, **kwargs):
-        old = Game.objects.filter(pk=self.pk).values_list("cover", flat=True).first() if self.pk else None
+        old = (Game.objects.filter(pk=self.pk).values(*self.IMAGE_FIELDS).first() if self.pk else None) or {}
         super().save(*args, **kwargs)
-        if old and old != self.cover.name:
-            self._drop_file(old)  # cover replaced or cleared
+        for f in self.IMAGE_FIELDS:
+            if old.get(f) and old[f] != getattr(self, f).name:
+                self._drop_file(old[f])  # image replaced or cleared
 
     def delete(self, *args, **kwargs):
-        name = self.cover.name
+        names = [getattr(self, f).name for f in self.IMAGE_FIELDS]
         result = super().delete(*args, **kwargs)
-        if name:
-            self._drop_file(name)
+        for name in names:
+            if name:
+                self._drop_file(name)
         return result
 
     def _drop_file(self, name):
         try:
             self.cover.storage.delete(name)
         except Exception:  # a storage hiccup must never block editing the catalogue
-            log.warning("Couldn't delete old game cover %s", name, exc_info=True)
+            log.warning("Couldn't delete old game image %s", name, exc_info=True)

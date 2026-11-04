@@ -8,14 +8,18 @@ class GameSerializer(serializers.ModelSerializer):
     # Display names, same order as `platforms` (e.g. "PlayStation 5").
     platform_names = serializers.SlugRelatedField(source="platforms", many=True, read_only=True, slug_field="name")
     cover_url = serializers.SerializerMethodField()
+    banner_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Game
         fields = ["id", "name", "mono", "genre", "hue", "deep", "platforms", "platform_names", "max_players",
-                  "cover_url"]
+                  "cover_url", "banner_url"]
 
     def get_cover_url(self, g):
         return file_url(g.cover, self.context.get("request"))
+
+    def get_banner_url(self, g):
+        return file_url(g.banner, self.context.get("request"))
 
 
 def file_url(f, request=None):
