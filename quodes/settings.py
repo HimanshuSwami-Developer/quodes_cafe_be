@@ -208,7 +208,7 @@ AI_VERIFY_ENABLED = env_bool("AI_VERIFY_ENABLED", True)
 AI_VERIFY_ASYNC = env_bool("AI_VERIFY_ASYNC", True)
 
 # ---- Admin panel (django-unfold) -------------------------------------------------
-from django.urls import reverse_lazy  # noqa: E402
+from django.urls import reverse  # noqa: E402
 
 
 def _blue():
@@ -231,27 +231,27 @@ UNFOLD = {
         "show_all_applications": False,
         "navigation": [
             {"title": "Desk", "items": [
-                {"title": "Dashboard", "icon": "dashboard", "link": reverse_lazy("admin:index")},
+                {"title": "Dashboard", "icon": "dashboard", "link": lambda request: reverse("admin:index")},
                 {"title": "Verify payments", "icon": "verified", "badge": "quodes.dashboard.verify_badge",
-                 "link": lambda request: reverse_lazy("admin:bookings_booking_changelist") + "?queue=verify"},
-                {"title": "All bookings", "icon": "event_seat", "link": reverse_lazy("admin:bookings_booking_changelist")},
+                 "link": lambda request: reverse("admin:bookings_booking_changelist") + "?queue=verify"},
+                {"title": "All bookings", "icon": "event_seat", "link": lambda request: reverse("admin:bookings_booking_changelist")},
                 {"title": "Support tickets", "icon": "support_agent", "badge": "quodes.dashboard.ticket_badge",
-                 "link": reverse_lazy("admin:support_ticket_changelist")},
+                 "link": lambda request: reverse("admin:support_ticket_changelist")},
             ]},
             {"title": "Café", "items": [
-                {"title": "Games", "icon": "stadia_controller", "link": reverse_lazy("admin:catalog_game_changelist")},
-                {"title": "Station types & rates", "icon": "devices", "link": reverse_lazy("admin:catalog_stationtype_changelist")},
-                {"title": "Stations", "icon": "chair", "link": reverse_lazy("admin:catalog_station_changelist")},
+                {"title": "Games", "icon": "stadia_controller", "link": lambda request: reverse("admin:catalog_game_changelist")},
+                {"title": "Station types & rates", "icon": "devices", "link": lambda request: reverse("admin:catalog_stationtype_changelist")},
+                {"title": "Stations", "icon": "chair", "link": lambda request: reverse("admin:catalog_station_changelist")},
                 {"title": "Café settings", "icon": "storefront",
-                 "link": reverse_lazy("admin:catalog_cafesettings_change", args=[1])},
+                 "link": lambda request: reverse("admin:catalog_cafesettings_change", args=[1])},
             ]},
             {"title": "Content", "items": [
-                {"title": "FAQs", "icon": "help", "link": reverse_lazy("admin:support_faq_changelist")},
-                {"title": "Policies", "icon": "gavel", "link": reverse_lazy("admin:support_policy_changelist")},
+                {"title": "FAQs", "icon": "help", "link": lambda request: reverse("admin:support_faq_changelist")},
+                {"title": "Policies", "icon": "gavel", "link": lambda request: reverse("admin:support_policy_changelist")},
             ]},
             {"title": "People", "items": [
-                {"title": "Players & staff", "icon": "group", "link": reverse_lazy("admin:accounts_user_changelist")},
-                {"title": "Staff roles", "icon": "admin_panel_settings", "link": reverse_lazy("admin:auth_group_changelist"),
+                {"title": "Players & staff", "icon": "group", "link": lambda request: reverse("admin:accounts_user_changelist")},
+                {"title": "Staff roles", "icon": "admin_panel_settings", "link": lambda request: reverse("admin:auth_group_changelist"),
                  "permission": lambda request: request.user.is_superuser},
             ]},
         ],
